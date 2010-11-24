@@ -4,24 +4,40 @@ module Main where
 import Data.Typeable
 import Data.List(intersperse)
 
-data Variable a = Variable String
+data Variable a v = Variable v
                 deriving (Show)
 
 data Tuple a b = Tuple a b
                deriving (Show, Typeable)
 
-data Expr a where
-  Literal    :: Show a => a -> Expr a
-  TupleExp   :: (Show a, Show b) => Expr a -> Expr b -> Expr (Tuple a b)
-  VarExp     :: Variable a -> Expr a
-  Assignment :: Variable a -> Expr a -> Expr a
+-- First type parameter is expression type, second is variables names type
+data Expr t v where
+  Literal    :: Show t => t -> Expr t v
+  TupleExp   :: (Show t, Show t') => Expr t v -> Expr t' v -> Expr (Tuple t t') v
+  VarExp     :: Variable t v -> Expr t v
+  Assignment :: Variable t v -> Expr t v -> Expr t v
   deriving (Typeable)
+
+-- 'flipped' expr
+--type FExpr v t = FExpr (Expr t v)
 
 --struct (exprA:(exprB:[])) = Tuple exprA exprB
 --struct (expr:exprs)       = Tuple expr (struct exprs)
+
+
+-- Functor instance: transforms variable names
+instance Functor (Expr a) where
+--  fmap :: (a -> b) -> Expr t a -> Expr t b
+  fmap f (Literal x) = Literal x
+  fmap f (TupleExp x y) = TupleExp (fmap f x) (fmap f y)
+  fmap f (VarExp (Variable v)) = VarExp (Variable (f v))
+  fmap f (Assignment (Variable v) x) = Assignment (Variable (f v)) (fmap f x)
   
 
-instance Show a => Show (Expr a) where
+-- Monad instance: fixes variable types
+--instance Monad (Expr)
+
+instance (Show a, Show v) => Show (Expr a v) where
   show (Literal l) = "Literal " ++ show l
   show (Assignment var val) = show var ++ " = " ++ show val
   show (VarExp v) = show v
